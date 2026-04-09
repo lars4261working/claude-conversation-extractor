@@ -524,28 +524,33 @@ function setLang(l) {
   updateUI();
 }
 
+function safeSet(id, prop, val) {
+  const el = document.getElementById(id);
+  if (el) { if (prop === 'innerHTML') el.innerHTML = val; else if (prop === 'placeholder') el.placeholder = val; else el.textContent = val; }
+}
+
 function updateUI() {
-  document.getElementById('page-title').textContent = T('pageTitle');
-  document.getElementById('page-subtitle').textContent = T('pageSubtitle');
-  document.getElementById('privacy-text').textContent = T('privacy');
-  document.getElementById('upload-text').textContent = T('uploadText');
-  document.getElementById('conv-panel-title').innerHTML = T('convPanelTitle');
-  document.getElementById('search-input').placeholder = T('searchPlaceholder');
-  document.getElementById('btn-select-all').textContent = T('selectAll');
-  document.getElementById('btn-deselect-all').textContent = T('deselectAll');
-  document.getElementById('th-date').textContent = T('thDate');
-  document.getElementById('th-title').textContent = T('thTitle');
-  document.getElementById('th-msgs').textContent = T('thMsgs');
-  document.getElementById('opt-date-label').textContent = T('optDateLabel');
-  document.getElementById('opt-files-label').textContent = T('optFilesLabel');
-  document.getElementById('opt-md-label').textContent = T('optMdLabel');
-  document.getElementById('opt-json-label').textContent = T('optJsonLabel');
-  document.getElementById('opts-panel-title').innerHTML = T('optsPanelTitle');
-  document.getElementById('ext-panel-title').innerHTML = T('extPanelTitle');
-  document.getElementById('btn-ext-all').textContent = T('extAll');
-  document.getElementById('btn-ext-none').textContent = T('extNone');
-  document.getElementById('btn-extract-text').textContent = T('btnExtract');
-  document.getElementById('footer-text').innerHTML = T('footer');
+  safeSet('page-title', 'text', T('pageTitle'));
+  safeSet('page-subtitle', 'text', T('pageSubtitle'));
+  safeSet('privacy-text', 'text', T('privacy'));
+  safeSet('upload-text', 'text', T('uploadText'));
+  safeSet('conv-panel-title', 'innerHTML', T('convPanelTitle'));
+  safeSet('search-input', 'placeholder', T('searchPlaceholder'));
+  safeSet('btn-select-all', 'text', T('selectAll'));
+  safeSet('btn-deselect-all', 'text', T('deselectAll'));
+  safeSet('th-date', 'text', T('thDate'));
+  safeSet('th-title', 'text', T('thTitle'));
+  safeSet('th-msgs', 'text', T('thMsgs'));
+  safeSet('opt-date-label', 'text', T('optDateLabel'));
+  safeSet('opt-files-label', 'text', T('optFilesLabel'));
+  safeSet('opt-md-label', 'text', T('optMdLabel'));
+  safeSet('opt-json-label', 'text', T('optJsonLabel'));
+  safeSet('opts-panel-title', 'innerHTML', T('optsPanelTitle'));
+  safeSet('ext-panel-title', 'innerHTML', T('extPanelTitle'));
+  safeSet('btn-ext-all', 'text', T('extAll'));
+  safeSet('btn-ext-none', 'text', T('extNone'));
+  safeSet('btn-extract-text', 'text', T('btnExtract'));
+  safeSet('footer-text', 'innerHTML', T('footer'));
   updateSelCount();
   updateStats();
 }
@@ -650,9 +655,15 @@ function loadFile(file) {
     try {
       conversations = JSON.parse(reader.result);
       if (!Array.isArray(conversations)) throw new Error('Not an array');
-      processData();
     } catch (e) {
       alert('Failed to parse JSON: ' + e.message);
+      return;
+    }
+    try {
+      processData();
+    } catch (e) {
+      console.error('processData error:', e);
+      alert('Error processing data: ' + e.message);
     }
   };
   reader.readAsText(file);
@@ -762,6 +773,7 @@ function updateStats() {
   if (!conversations.length) return;
   const totalFiles = Object.values(extStats).reduce((a, b) => a + b, 0);
   const bar = document.getElementById('stats-bar');
+  if (!bar) return;
   bar.innerHTML =
     `<span><span class="num">${conversations.length}</span> ${T('statsConvs')}</span>` +
     `<span><span class="num">${totalMessages}</span> ${T('statsMsgs')}</span>` +
@@ -834,10 +846,11 @@ function toggleAll(checked) {
 }
 
 function updateSelCount() {
-  document.getElementById('sel-count').textContent = selectedSet.size;
-  const tmpl = T('selText');
   const parent = document.getElementById('sel-text');
-  parent.innerHTML = tmpl.replace('{n}', `<span class="count">${selectedSet.size}</span>`);
+  if (parent) {
+    const tmpl = T('selText');
+    parent.innerHTML = tmpl.replace('{n}', `<span class="count">${selectedSet.size}</span>`);
+  }
   updateExtractBtn();
 }
 
