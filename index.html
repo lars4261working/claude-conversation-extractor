@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Conversation Extractor</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #1a1a2e;
+  --bg2: #16213e;
+  --bg3: #0f3460;
+  --surface: #1e2746;
+  --surface2: #253256;
+  --border: #2a3a5c;
+  --text: #e0e0e0;
+  --text2: #a0aec0;
+  --accent: #64b5f6;
+  --accent2: #42a5f5;
+  --green: #66bb6a;
+  --red: #ef5350;
+  --orange: #ffa726;
+  --radius: 8px;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", "Noto Sans SC", sans-serif;
+  --mono: "SF Mono", "Fira Code", "Fira Mono", Menlo, monospace;
+}
+
+html { font-size: 14px; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+
+h1 { font-size: 1.6rem; font-weight: 700; color: #fff; margin-bottom: 0.25rem; }
+.subtitle { color: var(--text2); font-size: 0.85rem; margin-bottom: 1.5rem; }
+
+/* Upload area */
+#upload-area {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 3rem 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  background: var(--surface);
+  margin-bottom: 1.5rem;
+}
+#upload-area:hover, #upload-area.dragover {
+  border-color: var(--accent);
+  background: var(--surface2);
+}
+#upload-area .icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
+#upload-area p { color: var(--text2); }
+#upload-area .filename { color: var(--green); font-weight: 600; margin-top: 0.5rem; }
+#file-input { display: none; }
+
+/* Privacy notice */
+.privacy {
+  display: flex; align-items: center; gap: 0.5rem;
+  background: rgba(100,181,246,0.08); border: 1px solid rgba(100,181,246,0.2);
+  border-radius: var(--radius); padding: 0.6rem 1rem; margin-bottom: 1.5rem;
+  font-size: 0.82rem; color: var(--accent);
+}
+
+/* Panels */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+.panel-title {
+  font-size: 0.95rem; font-weight: 600; color: #fff;
+  margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.45rem 1rem; border: 1px solid var(--border);
+  border-radius: 6px; background: var(--surface2); color: var(--text);
+  cursor: pointer; font-size: 0.82rem; font-family: var(--font);
+  transition: all 0.15s;
+}
+.btn:hover { background: var(--bg3); border-color: var(--accent); }
+.btn-primary {
+  background: var(--accent); color: #111; border-color: var(--accent); font-weight: 600;
+}
+.btn-primary:hover { background: var(--accent2); }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-sm { padding: 0.3rem 0.7rem; font-size: 0.78rem; }
+.btn-group { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+/* Toggle switch */
+.toggle-row {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.4rem 0; font-size: 0.85rem;
+}
+.toggle {
+  position: relative; width: 40px; height: 22px; flex-shrink: 0;
+}
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle .slider {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background: #444; border-radius: 22px; cursor: pointer; transition: 0.2s;
+}
+.toggle .slider::before {
+  content: ''; position: absolute; width: 16px; height: 16px;
+  left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: 0.2s;
+}
+.toggle input:checked + .slider { background: var(--accent); }
+.toggle input:checked + .slider::before { transform: translateX(18px); }
+
+/* Search box */
+.search-box {
+  width: 100%; padding: 0.5rem 0.75rem;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text); font-size: 0.85rem;
+  font-family: var(--font); outline: none;
+}
+.search-box:focus { border-color: var(--accent); }
+.search-box::placeholder { color: #666; }
+
+/* Conversation table */
+.table-wrap {
+  max-height: 400px; overflow-y: auto; border: 1px solid var(--border);
+  border-radius: var(--radius); margin-top: 0.75rem;
+}
+.table-wrap::-webkit-scrollbar { width: 8px; }
+.table-wrap::-webkit-scrollbar-track { background: var(--bg); }
+.table-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+thead { position: sticky; top: 0; z-index: 2; }
+th {
+  background: var(--bg3); color: var(--accent); font-weight: 600;
+  text-align: left; padding: 0.55rem 0.6rem; white-space: nowrap;
+  border-bottom: 2px solid var(--border);
+}
+td {
+  padding: 0.45rem 0.6rem; border-bottom: 1px solid rgba(42,58,92,0.5);
+  vertical-align: middle;
+}
+tr:hover td { background: rgba(100,181,246,0.04); }
+td.num { text-align: right; color: var(--text2); font-family: var(--mono); font-size: 0.78rem; }
+td.title-cell {
+  max-width: 500px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+td input[type="checkbox"] { accent-color: var(--accent); cursor: pointer; }
+th input[type="checkbox"] { accent-color: var(--accent); cursor: pointer; }
+
+/* File type checkboxes */
+.ext-grid {
+  display: flex; flex-wrap: wrap; gap: 0.4rem 0.8rem;
+  margin-top: 0.5rem; font-size: 0.82rem;
+}
+.ext-grid label {
+  display: flex; align-items: center; gap: 0.3rem; cursor: pointer;
+  padding: 0.2rem 0.5rem; border-radius: 4px; background: var(--bg);
+  border: 1px solid var(--border); transition: 0.15s;
+}
+.ext-grid label:hover { border-color: var(--accent); }
+.ext-grid label input { accent-color: var(--accent); }
+.ext-count { color: var(--text2); font-size: 0.75rem; }
+
+/* Stats bar */
+.stats {
+  display: flex; gap: 1.5rem; flex-wrap: wrap;
+  font-size: 0.82rem; color: var(--text2); margin: 0.75rem 0;
+}
+.stats span { display: flex; align-items: center; gap: 0.3rem; }
+.stats .num { color: var(--accent); font-weight: 600; }
+
+/* Progress */
+.progress-wrap {
+  margin: 1rem 0; display: none;
+}
+.progress-bar {
+  height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden;
+}
+.progress-bar .fill {
+  height: 100%; background: linear-gradient(90deg, var(--accent), var(--green));
+  width: 0%; transition: width 0.2s;
+}
+.progress-text {
+  font-size: 0.8rem; color: var(--text2); margin-top: 0.4rem; text-align: center;
+}
+
+/* Language toggle */
+.lang-toggle {
+  display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
+  font-size: 0.8rem;
+}
+.lang-toggle button {
+  padding: 0.3rem 0.8rem; background: var(--surface); color: var(--text2);
+  border: none; cursor: pointer; font-family: var(--font); transition: 0.15s;
+}
+.lang-toggle button.active {
+  background: var(--accent); color: #111; font-weight: 600;
+}
+
+/* Header bar */
+.header {
+  display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;
+  margin-bottom: 0.25rem;
+}
+
+/* Hidden sections */
+.hidden { display: none !important; }
+
+/* Toolbar row */
+.toolbar {
+  display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.75rem;
+}
+.toolbar .search-wrap { flex: 1; min-width: 200px; }
+
+/* Selection info */
+.sel-info {
+  font-size: 0.82rem; color: var(--text2); padding: 0.3rem 0;
+}
+.sel-info .count { color: var(--accent); font-weight: 600; }
+
+/* Options grid */
+.options-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem 2rem;
+}
+@media (max-width: 700px) {
+  .options-grid { grid-template-columns: 1fr; }
+  .header { flex-direction: column; }
+}
+
+/* Extract button area */
+.extract-area {
+  display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+/* Footer */
+.footer {
+  text-align: center; color: var(--text2); font-size: 0.75rem;
+  padding: 2rem 0 1rem; border-top: 1px solid var(--border); margin-top: 2rem;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <div>
+      <h1 id="page-title">Claude 對話提取工具</h1>
+      <div class="subtitle" id="page-subtitle">從 conversations.json 提取檔案與對話記錄</div>
+    </div>
+    <div class="lang-toggle">
+      <button id="lang-zh" class="active" onclick="setLang('zh')">ZH</button>
+      <button id="lang-en" onclick="setLang('en')">EN</button>
+    </div>
+  </div>
+
+  <div class="privacy">
+    <span>&#x1f512;</span>
+    <span id="privacy-text">所有資料均在瀏覽器本地處理，不會上傳至任何伺服器。</span>
+  </div>
+
+  <!-- Upload -->
+  <div id="upload-area" onclick="document.getElementById('file-input').click()">
+    <div class="icon">&#x1f4c1;</div>
+    <p id="upload-text">拖放或點擊上傳 conversations.json</p>
+    <div class="filename hidden" id="upload-filename"></div>
+    <input type="file" id="file-input" accept=".json">
+  </div>
+
+  <!-- Main content (hidden until file loaded) -->
+  <div id="main-content" class="hidden">
+
+    <!-- Stats -->
+    <div class="stats" id="stats-bar"></div>
+
+    <!-- Conversation list -->
+    <div class="panel">
+      <div class="panel-title" id="conv-panel-title">&#x1f4ac; 對話列表</div>
+      <div class="toolbar">
+        <div class="search-wrap">
+          <input type="text" class="search-box" id="search-input" placeholder="搜尋對話標題...">
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-sm" id="btn-select-all" onclick="selectAll()">全選</button>
+          <button class="btn btn-sm" id="btn-deselect-all" onclick="deselectAll()">取消全選</button>
+        </div>
+      </div>
+      <div class="sel-info">
+        <span id="sel-text">已選擇 <span class="count" id="sel-count">0</span> 個對話</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:36px"><input type="checkbox" id="header-checkbox" onchange="toggleAll(this.checked)"></th>
+              <th style="width:50px">#</th>
+              <th style="width:110px" id="th-date">日期</th>
+              <th id="th-title">標題</th>
+              <th style="width:60px;text-align:right" id="th-msgs">訊息</th>
+            </tr>
+          </thead>
+          <tbody id="conv-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Options -->
+    <div class="panel">
+      <div class="panel-title" id="opts-panel-title">&#x2699;&#xfe0f; 選項</div>
+      <div class="options-grid">
+        <div>
+          <div class="toggle-row">
+            <label class="toggle"><input type="checkbox" id="opt-date-prefix"><span class="slider"></span></label>
+            <span id="opt-date-label">檔案名稱加上日期前綴</span>
+          </div>
+          <div class="toggle-row">
+            <label class="toggle"><input type="checkbox" id="opt-extract-files" checked><span class="slider"></span></label>
+            <span id="opt-files-label">提取檔案（附件、成品、工具產生的檔案）</span>
+          </div>
+          <div class="toggle-row">
+            <label class="toggle"><input type="checkbox" id="opt-chat-md" checked><span class="slider"></span></label>
+            <span id="opt-md-label">提取對話為 Markdown</span>
+          </div>
+          <div class="toggle-row">
+            <label class="toggle"><input type="checkbox" id="opt-chat-json"><span class="slider"></span></label>
+            <span id="opt-json-label">提取對話為 JSON</span>
+          </div>
+        </div>
+        <div>
+          <div id="ext-section">
+            <div class="panel-title" id="ext-panel-title" style="font-size:0.85rem">&#x1f4c4; 檔案類型篩選</div>
+            <div class="btn-group" style="margin-bottom:0.5rem">
+              <button class="btn btn-sm" id="btn-ext-all" onclick="toggleAllExts(true)">全選</button>
+              <button class="btn btn-sm" id="btn-ext-none" onclick="toggleAllExts(false)">全不選</button>
+            </div>
+            <div class="ext-grid" id="ext-grid"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Extract -->
+    <div class="panel">
+      <div class="extract-area">
+        <button class="btn btn-primary" id="btn-extract" onclick="doExtract()" disabled>
+          <span>&#x1f4e6;</span> <span id="btn-extract-text">提取並下載 ZIP</span>
+        </button>
+        <span class="sel-info" id="extract-summary"></span>
+      </div>
+      <div class="progress-wrap" id="progress-wrap">
+        <div class="progress-bar"><div class="fill" id="progress-fill"></div></div>
+        <div class="progress-text" id="progress-text"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer" id="footer-text">
+    Claude Conversation Extractor &mdash; Client-side only, no data uploaded.
+  </div>
+</div>
+
+<script>
+// ──────────────────────────────────────────
+// i18n
+// ──────────────────────────────────────────
+const I18N = {
+  zh: {
+    pageTitle: 'Claude 對話提取工具',
+    pageSubtitle: '從 conversations.json 提取檔案與對話記錄',
+    privacy: '所有資料均在瀏覽器本地處理，不會上傳至任何伺服器。',
+    uploadText: '拖放或點擊上傳 conversations.json',
+    convPanelTitle: '\u{1f4ac} 對話列表',
+    searchPlaceholder: '搜尋對話標題...',
+    selectAll: '全選',
+    deselectAll: '取消全選',
+    selText: '已選擇 {n} 個對話',
+    thDate: '日期',
+    thTitle: '標題',
+    thMsgs: '訊息',
+    optDateLabel: '檔案名稱加上日期前綴',
+    optFilesLabel: '提取檔案（附件、成品、工具產生的檔案）',
+    optMdLabel: '提取對話為 Markdown',
+    optJsonLabel: '提取對話為 JSON',
+    optsPanelTitle: '\u2699\ufe0f 選項',
+    extPanelTitle: '\u{1f4c4} 檔案類型篩選',
+    extAll: '全選',
+    extNone: '全不選',
+    btnExtract: '提取並下載 ZIP',
+    statsConvs: '對話',
+    statsMsgs: '訊息',
+    statsFiles: '檔案',
+    statsTypes: '類型',
+    progressPreparing: '準備中...',
+    progressProcessing: '處理中 {n}/{t}...',
+    progressZipping: '打包 ZIP 中...',
+    progressDone: '完成！已提取 {f} 個檔案、{m} 個 Markdown、{j} 個 JSON',
+    noTitle: '無標題',
+    readableUser: '\u{1f9d1} 使用者',
+    readableClaude: '\u{1f916} Claude',
+    readableCreated: '建立時間',
+    readableUpdated: '更新時間',
+    readableThinking: '\u{1f4ad} 思考過程',
+    readableToolCall: '\u{1f527} 工具呼叫',
+    readableResult: '\u{1f4cb}',
+    readableError: '\u274c 錯誤',
+    readableOk: '\u2705 結果',
+    readableAttach: '\u{1f4ce} 附件',
+    readableFile: '\u{1f4c1} 檔案',
+    footer: 'Claude 對話提取工具 — 純瀏覽器端處理，不上傳任何資料。',
+  },
+  en: {
+    pageTitle: 'Claude Conversation Extractor',
+    pageSubtitle: 'Extract files and chat logs from conversations.json',
+    privacy: 'All data is processed locally in your browser. Nothing is uploaded.',
+    uploadText: 'Drag & drop or click to upload conversations.json',
+    convPanelTitle: '\u{1f4ac} Conversations',
+    searchPlaceholder: 'Search conversation titles...',
+    selectAll: 'Select All',
+    deselectAll: 'Deselect All',
+    selText: '{n} conversations selected',
+    thDate: 'Date',
+    thTitle: 'Title',
+    thMsgs: 'Msgs',
+    optDateLabel: 'Include date prefix in folder/filenames',
+    optFilesLabel: 'Extract files (attachments, artifacts, tool-created)',
+    optMdLabel: 'Extract chat as Markdown',
+    optJsonLabel: 'Extract chat as JSON',
+    optsPanelTitle: '\u2699\ufe0f Options',
+    extPanelTitle: '\u{1f4c4} File Type Filter',
+    extAll: 'All',
+    extNone: 'None',
+    btnExtract: 'Extract & Download ZIP',
+    statsConvs: 'conversations',
+    statsMsgs: 'messages',
+    statsFiles: 'files',
+    statsTypes: 'types',
+    progressPreparing: 'Preparing...',
+    progressProcessing: 'Processing {n}/{t}...',
+    progressZipping: 'Generating ZIP...',
+    progressDone: 'Done! Extracted {f} files, {m} Markdown, {j} JSON',
+    noTitle: 'Untitled',
+    readableUser: '\u{1f9d1} User',
+    readableClaude: '\u{1f916} Claude',
+    readableCreated: 'Created',
+    readableUpdated: 'Updated',
+    readableThinking: '\u{1f4ad} Thinking',
+    readableToolCall: '\u{1f527} Tool call',
+    readableResult: '\u{1f4cb}',
+    readableError: '\u274c Error',
+    readableOk: '\u2705 Result',
+    readableAttach: '\u{1f4ce} Attachment',
+    readableFile: '\u{1f4c1} File',
+    footer: 'Claude Conversation Extractor — Client-side only, no data uploaded.',
+  }
+};
+
+let lang = 'zh';
+function T(key) { return (I18N[lang] || I18N.zh)[key] || key; }
+
+function setLang(l) {
+  lang = l;
+  document.getElementById('lang-zh').classList.toggle('active', l === 'zh');
+  document.getElementById('lang-en').classList.toggle('active', l === 'en');
+  document.documentElement.lang = l === 'zh' ? 'zh-Hant' : 'en';
+  updateUI();
+}
+
+function updateUI() {
+  document.getElementById('page-title').textContent = T('pageTitle');
+  document.getElementById('page-subtitle').textContent = T('pageSubtitle');
+  document.getElementById('privacy-text').textContent = T('privacy');
+  document.getElementById('upload-text').textContent = T('uploadText');
+  document.getElementById('conv-panel-title').innerHTML = T('convPanelTitle');
+  document.getElementById('search-input').placeholder = T('searchPlaceholder');
+  document.getElementById('btn-select-all').textContent = T('selectAll');
+  document.getElementById('btn-deselect-all').textContent = T('deselectAll');
+  document.getElementById('th-date').textContent = T('thDate');
+  document.getElementById('th-title').textContent = T('thTitle');
+  document.getElementById('th-msgs').textContent = T('thMsgs');
+  document.getElementById('opt-date-label').textContent = T('optDateLabel');
+  document.getElementById('opt-files-label').textContent = T('optFilesLabel');
+  document.getElementById('opt-md-label').textContent = T('optMdLabel');
+  document.getElementById('opt-json-label').textContent = T('optJsonLabel');
+  document.getElementById('opts-panel-title').innerHTML = T('optsPanelTitle');
+  document.getElementById('ext-panel-title').innerHTML = T('extPanelTitle');
+  document.getElementById('btn-ext-all').textContent = T('extAll');
+  document.getElementById('btn-ext-none').textContent = T('extNone');
+  document.getElementById('btn-extract-text').textContent = T('btnExtract');
+  document.getElementById('footer-text').innerHTML = T('footer');
+  updateSelCount();
+  updateStats();
+}
+
+// ──────────────────────────────────────────
+// State
+// ──────────────────────────────────────────
+let conversations = [];
+let filesByConv = {};   // idx -> [{fn, content, source}]
+let extStats = {};      // ext -> count
+let selectedSet = new Set();
+let totalMessages = 0;
+
+// ──────────────────────────────────────────
+// Utilities
+// ──────────────────────────────────────────
+function sanitizeFilename(name, maxLen = 80) {
+  name = name.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_');
+  name = name.replace(/^[.\s]+|[.\s]+$/g, '');
+  return (name || 'unnamed').slice(0, maxLen);
+}
+
+function getFileExt(fn) {
+  const idx = fn.lastIndexOf('.');
+  if (idx < 0) return '';
+  const ext = fn.slice(idx).toLowerCase();
+  return /^\.[a-z0-9]{1,10}$/.test(ext) ? ext : '';
+}
+
+const ARTIFACT_LANG_MAP = {
+  python: '.py', javascript: '.js', typescript: '.ts',
+  html: '.html', 'text/html': '.html', css: '.css',
+  json: '.json', markdown: '.md', yaml: '.yaml',
+  bash: '.sh', shell: '.sh', svg: '.svg',
+  jsx: '.jsx', tsx: '.tsx', cpp: '.cpp', c: '.c',
+  rust: '.rs', go: '.go', java: '.java',
+  sql: '.sql', xml: '.xml', text: '.txt',
+};
+
+function formatTimestamp(ts) {
+  if (!ts) return '';
+  try {
+    const d = new Date(ts);
+    if (isNaN(d)) return ts;
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  } catch { return ts; }
+}
+
+function getConvDate(conv) {
+  const ts = conv.created_at || '';
+  if (!ts) return '';
+  try {
+    const d = new Date(ts);
+    if (isNaN(d)) return '';
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  } catch { return ''; }
+}
+
+function getTitle(conv) {
+  return conv.name || T('noTitle');
+}
+
+function makeFolderName(idx, conv) {
+  const title = getTitle(conv);
+  const date = getConvDate(conv);
+  const useDate = document.getElementById('opt-date-prefix').checked;
+  if (useDate && date) return sanitizeFilename(`${String(idx+1).padStart(3,'0')}_${date}_${title}`);
+  return sanitizeFilename(`${String(idx+1).padStart(3,'0')}_${title}`);
+}
+
+function makeChatFilename(idx, conv, ext) {
+  const title = getTitle(conv);
+  const date = getConvDate(conv);
+  const useDate = document.getElementById('opt-date-prefix').checked;
+  if (useDate && date) return sanitizeFilename(`${String(idx+1).padStart(3,'0')}_${date}_${title}_chat`) + ext;
+  return sanitizeFilename(`${String(idx+1).padStart(3,'0')}_${title}_chat`) + ext;
+}
+
+// ──────────────────────────────────────────
+// File upload
+// ──────────────────────────────────────────
+const uploadArea = document.getElementById('upload-area');
+const fileInput = document.getElementById('file-input');
+
+uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+uploadArea.addEventListener('drop', e => {
+  e.preventDefault(); uploadArea.classList.remove('dragover');
+  if (e.dataTransfer.files.length) loadFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => { if (fileInput.files.length) loadFile(fileInput.files[0]); });
+
+function loadFile(file) {
+  const fnEl = document.getElementById('upload-filename');
+  fnEl.textContent = file.name + ' (' + (file.size / 1048576).toFixed(1) + ' MB)';
+  fnEl.classList.remove('hidden');
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      conversations = JSON.parse(reader.result);
+      if (!Array.isArray(conversations)) throw new Error('Not an array');
+      processData();
+    } catch (e) {
+      alert('Failed to parse JSON: ' + e.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ──────────────────────────────────────────
+// Scan files
+// ──────────────────────────────────────────
+function scanAllFiles(data) {
+  const byConv = {};
+  const stats = {};
+  totalMessages = 0;
+
+  for (let idx = 0; idx < data.length; idx++) {
+    const conv = data[idx];
+    const msgs = conv.chat_messages || [];
+    totalMessages += msgs.length;
+
+    for (const msg of msgs) {
+      // Attachments
+      for (const att of (msg.attachments || [])) {
+        const fn = att.file_name || '';
+        const content = att.extracted_content || '';
+        if (fn && content) {
+          const ext = getFileExt(fn);
+          if (ext) {
+            stats[ext] = (stats[ext] || 0) + 1;
+            if (!byConv[idx]) byConv[idx] = [];
+            byConv[idx].push({ fn, content, source: 'attachment' });
+          }
+        }
+      }
+
+      // Content blocks
+      for (const c of (msg.content || [])) {
+        if (c.type !== 'tool_use') continue;
+        const toolName = c.name || '';
+        const inp = c.input;
+        if (!inp || typeof inp !== 'object') continue;
+
+        if (['create_file', 'Write', 'write_to_file', 'EditFile'].includes(toolName)) {
+          const path = inp.file_path || inp.path || '';
+          const content = inp.content || inp.file_text || '';
+          if (path && content) {
+            const fn = path.split('/').pop().split('\\').pop();
+            const ext = getFileExt(fn);
+            if (ext) {
+              stats[ext] = (stats[ext] || 0) + 1;
+              if (!byConv[idx]) byConv[idx] = [];
+              byConv[idx].push({ fn, content, source: 'tool' });
+            }
+          }
+        } else if (toolName === 'artifacts') {
+          let atitle = inp.title || inp.identifier || '';
+          const content = inp.content || '';
+          const artifactLang = String(inp.language || inp.type || '').toLowerCase();
+          if (!(atitle && content)) continue;
+          let ext = getFileExt(atitle);
+          if (!ext && ARTIFACT_LANG_MAP[artifactLang]) {
+            ext = ARTIFACT_LANG_MAP[artifactLang];
+            atitle = atitle + ext;
+          } else if (!ext) continue;
+          stats[ext] = (stats[ext] || 0) + 1;
+          const fn = sanitizeFilename(atitle);
+          if (!byConv[idx]) byConv[idx] = [];
+          byConv[idx].push({ fn, content, source: 'artifact' });
+        } else if (toolName === 'present_files') {
+          const fileList = inp.files;
+          if (!Array.isArray(fileList)) continue;
+          for (const f of fileList) {
+            if (!f || typeof f !== 'object') continue;
+            const fn = f.file_name || f.name || '';
+            const content = f.content || '';
+            if (fn && content) {
+              const ext = getFileExt(fn);
+              if (ext) {
+                stats[ext] = (stats[ext] || 0) + 1;
+                if (!byConv[idx]) byConv[idx] = [];
+                byConv[idx].push({ fn, content, source: 'present' });
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return { byConv, stats };
+}
+
+// ──────────────────────────────────────────
+// Process loaded data
+// ──────────────────────────────────────────
+function processData() {
+  const result = scanAllFiles(conversations);
+  filesByConv = result.byConv;
+  extStats = result.stats;
+
+  buildConvTable();
+  buildExtGrid();
+  updateStats();
+  selectAll();
+  document.getElementById('main-content').classList.remove('hidden');
+}
+
+function updateStats() {
+  if (!conversations.length) return;
+  const totalFiles = Object.values(extStats).reduce((a, b) => a + b, 0);
+  const bar = document.getElementById('stats-bar');
+  bar.innerHTML =
+    `<span><span class="num">${conversations.length}</span> ${T('statsConvs')}</span>` +
+    `<span><span class="num">${totalMessages}</span> ${T('statsMsgs')}</span>` +
+    `<span><span class="num">${totalFiles}</span> ${T('statsFiles')}</span>` +
+    `<span><span class="num">${Object.keys(extStats).length}</span> ${T('statsTypes')}</span>`;
+}
+
+// ──────────────────────────────────────────
+// Conversation table
+// ──────────────────────────────────────────
+function buildConvTable() {
+  const tbody = document.getElementById('conv-tbody');
+  tbody.innerHTML = '';
+  for (let i = 0; i < conversations.length; i++) {
+    const conv = conversations[i];
+    const tr = document.createElement('tr');
+    tr.dataset.idx = i;
+    tr.dataset.title = getTitle(conv).toLowerCase();
+    const msgCount = (conv.chat_messages || []).length;
+    tr.innerHTML =
+      `<td><input type="checkbox" data-idx="${i}" onchange="onCheckChange(${i}, this.checked)"></td>` +
+      `<td class="num">${i + 1}</td>` +
+      `<td style="white-space:nowrap;color:var(--text2)">${getConvDate(conv)}</td>` +
+      `<td class="title-cell">${escHtml(getTitle(conv))}</td>` +
+      `<td class="num">${msgCount}</td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Search
+document.getElementById('search-input').addEventListener('input', function() {
+  const q = this.value.toLowerCase().trim();
+  const rows = document.querySelectorAll('#conv-tbody tr');
+  rows.forEach(tr => {
+    tr.classList.toggle('hidden', q && !tr.dataset.title.includes(q));
+  });
+});
+
+// Selection
+function onCheckChange(idx, checked) {
+  if (checked) selectedSet.add(idx); else selectedSet.delete(idx);
+  updateSelCount();
+}
+
+function selectAll() {
+  selectedSet.clear();
+  const rows = document.querySelectorAll('#conv-tbody tr:not(.hidden)');
+  rows.forEach(tr => {
+    const idx = parseInt(tr.dataset.idx);
+    selectedSet.add(idx);
+    tr.querySelector('input[type="checkbox"]').checked = true;
+  });
+  document.getElementById('header-checkbox').checked = true;
+  updateSelCount();
+}
+
+function deselectAll() {
+  selectedSet.clear();
+  document.querySelectorAll('#conv-tbody input[type="checkbox"]').forEach(cb => cb.checked = false);
+  document.getElementById('header-checkbox').checked = false;
+  updateSelCount();
+}
+
+function toggleAll(checked) {
+  if (checked) selectAll(); else deselectAll();
+}
+
+function updateSelCount() {
+  document.getElementById('sel-count').textContent = selectedSet.size;
+  const tmpl = T('selText');
+  const parent = document.getElementById('sel-text');
+  parent.innerHTML = tmpl.replace('{n}', `<span class="count">${selectedSet.size}</span>`);
+  updateExtractBtn();
+}
+
+// ──────────────────────────────────────────
+// Extension grid
+// ──────────────────────────────────────────
+function buildExtGrid() {
+  const grid = document.getElementById('ext-grid');
+  grid.innerHTML = '';
+  const sorted = Object.entries(extStats).sort((a, b) => b[1] - a[1]);
+  for (const [ext, count] of sorted) {
+    const label = document.createElement('label');
+    label.innerHTML =
+      `<input type="checkbox" class="ext-cb" value="${ext}" checked> ${ext} <span class="ext-count">(${count})</span>`;
+    grid.appendChild(label);
+  }
+}
+
+function toggleAllExts(state) {
+  document.querySelectorAll('.ext-cb').forEach(cb => cb.checked = state);
+}
+
+function getSelectedExts() {
+  const exts = new Set();
+  document.querySelectorAll('.ext-cb:checked').forEach(cb => exts.add(cb.value));
+  return exts;
+}
+
+// ──────────────────────────────────────────
+// Extract button state
+// ──────────────────────────────────────────
+function updateExtractBtn() {
+  const optFiles = document.getElementById('opt-extract-files').checked;
+  const optMd = document.getElementById('opt-chat-md').checked;
+  const optJson = document.getElementById('opt-chat-json').checked;
+  const hasSelection = selectedSet.size > 0;
+  const hasAction = optFiles || optMd || optJson;
+  document.getElementById('btn-extract').disabled = !(hasSelection && hasAction);
+}
+
+document.getElementById('opt-extract-files').addEventListener('change', function() {
+  document.getElementById('ext-section').classList.toggle('hidden', !this.checked);
+  updateExtractBtn();
+});
+document.getElementById('opt-chat-md').addEventListener('change', updateExtractBtn);
+document.getElementById('opt-chat-json').addEventListener('change', updateExtractBtn);
+
+// ──────────────────────────────────────────
+// Chat to Markdown
+// ──────────────────────────────────────────
+function convToMarkdown(conv) {
+  const title = getTitle(conv);
+  const created = formatTimestamp(conv.created_at || '');
+  const updated = formatTimestamp(conv.updated_at || '');
+  const lines = [];
+
+  lines.push(`# ${title}`, '',
+    `- ${T('readableCreated')}: ${created}`,
+    `- ${T('readableUpdated')}: ${updated}`,
+    `- UUID: ${conv.uuid || ''}`, '', '---', '');
+
+  for (const msg of (conv.chat_messages || [])) {
+    const sender = msg.sender || 'unknown';
+    const ts = formatTimestamp(msg.created_at || '');
+    const label = sender === 'human' ? T('readableUser') : T('readableClaude');
+
+    lines.push(`## ${label}\u3000\`${ts}\``, '');
+
+    for (const att of (msg.attachments || [])) {
+      const fn = att.file_name || '';
+      if (fn) {
+        const ftype = att.file_type || '';
+        const fsize = att.file_size || 0;
+        const sizeStr = fsize ? ` (${fsize} bytes)` : '';
+        lines.push(`> ${T('readableAttach')}: **${fn}** [${ftype}]${sizeStr}`, '');
+      }
+    }
+
+    for (const f of (msg.files || [])) {
+      const fn = f.file_name || '';
+      if (fn) lines.push(`> ${T('readableFile')}: **${fn}**`, '');
+    }
+
+    for (const c of (msg.content || [])) {
+      const ctype = c.type || '';
+
+      if (ctype === 'text') {
+        const text = c.text || '';
+        if (text.trim()) lines.push(text, '');
+      } else if (ctype === 'thinking') {
+        const thinking = c.thinking || '';
+        if (thinking.trim()) {
+          lines.push('<details>', `<summary>${T('readableThinking')}</summary>`, '', thinking, '', '</details>', '');
+        }
+      } else if (ctype === 'tool_use') {
+        const name = c.name || '';
+        const inp = c.input || {};
+        let params;
+        if (typeof inp === 'object' && inp !== null) {
+          const parts = [];
+          for (const [k, v] of Object.entries(inp)) {
+            let vs = String(v);
+            if (vs.length > 100) vs = vs.slice(0, 100) + '...';
+            parts.push(`${k}=${vs}`);
+          }
+          params = parts.join(', ');
+        } else {
+          params = String(inp).slice(0, 200);
+        }
+        lines.push(`> ${T('readableToolCall')}: \`${name}\``, '> ```', `> ${params.slice(0, 300)}`, '> ```', '');
+      } else if (ctype === 'tool_result') {
+        const isError = c.is_error || false;
+        const content = String(c.content || '');
+        const status = isError ? T('readableError') : T('readableOk');
+        let contentStr = content;
+        if (contentStr.length > 500) contentStr = contentStr.slice(0, 500) + `... (${content.length} chars)`;
+        lines.push(`> ${T('readableResult')} ${status}:`, '> ```', `> ${contentStr}`, '> ```', '');
+      }
+    }
+
+    lines.push('---', '');
+  }
+
+  return lines.join('\n');
+}
+
+// ──────────────────────────────────────────
+// Chat to JSON
+// ──────────────────────────────────────────
+function convToJSON(conv) {
+  const clean = {
+    uuid: conv.uuid || '',
+    title: getTitle(conv),
+    created_at: conv.created_at || '',
+    updated_at: conv.updated_at || '',
+    messages: []
+  };
+
+  for (const msg of (conv.chat_messages || [])) {
+    const cm = {
+      sender: msg.sender || '',
+      created_at: msg.created_at || '',
+      content: []
+    };
+
+    const atts = [];
+    for (const att of (msg.attachments || [])) {
+      atts.push({
+        file_name: att.file_name || '',
+        file_type: att.file_type || '',
+        file_size: att.file_size || 0,
+        extracted_content: att.extracted_content || ''
+      });
+    }
+    if (atts.length) cm.attachments = atts;
+
+    const files = [];
+    for (const f of (msg.files || [])) {
+      files.push({ file_name: f.file_name || '' });
+    }
+    if (files.length) cm.files = files;
+
+    for (const c of (msg.content || [])) {
+      const ctype = c.type || '';
+      if (ctype === 'text') cm.content.push({ type: 'text', text: c.text || '' });
+      else if (ctype === 'thinking') cm.content.push({ type: 'thinking', thinking: c.thinking || '' });
+      else if (ctype === 'tool_use') cm.content.push({ type: 'tool_use', name: c.name || '', input: c.input || {} });
+      else if (ctype === 'tool_result') cm.content.push({ type: 'tool_result', name: c.name || '', is_error: c.is_error || false, content: c.content || '' });
+    }
+
+    clean.messages.push(cm);
+  }
+
+  return clean;
+}
+
+// ──────────────────────────────────────────
+// Extraction
+// ──────────────────────────────────────────
+async function doExtract() {
+  const btn = document.getElementById('btn-extract');
+  btn.disabled = true;
+
+  const doFiles = document.getElementById('opt-extract-files').checked;
+  const doMd = document.getElementById('opt-chat-md').checked;
+  const doJson = document.getElementById('opt-chat-json').checked;
+  const selectedExts = getSelectedExts();
+
+  const indices = Array.from(selectedSet).sort((a, b) => a - b);
+  const total = indices.length;
+
+  const progressWrap = document.getElementById('progress-wrap');
+  const progressFill = document.getElementById('progress-fill');
+  const progressText = document.getElementById('progress-text');
+  progressWrap.style.display = 'block';
+  progressFill.style.width = '0%';
+  progressText.textContent = T('progressPreparing');
+
+  const zip = new JSZip();
+  const root = zip.folder('extracted');
+  let totalFileCount = 0, totalMd = 0, totalJson = 0;
+
+  // Process in batches to keep UI responsive
+  for (let i = 0; i < indices.length; i++) {
+    const idx = indices[i];
+    const conv = conversations[idx];
+    const folderName = makeFolderName(idx, conv);
+    let folder = null;
+
+    // Files
+    if (doFiles && filesByConv[idx]) {
+      const seen = {};
+      for (const { fn, content } of filesByConv[idx]) {
+        const ext = getFileExt(fn);
+        if (selectedExts.has(ext)) {
+          if (!seen[fn] || content.length > seen[fn].length) {
+            seen[fn] = content;
+          }
+        }
+      }
+      for (const [fn, content] of Object.entries(seen)) {
+        if (!folder) folder = root.folder(folderName);
+        let safeFn = sanitizeFilename(fn);
+        const ext = getFileExt(fn);
+        if (!getFileExt(safeFn) && ext) safeFn += ext;
+        folder.file(safeFn, content);
+        totalFileCount++;
+      }
+    }
+
+    // Markdown
+    if (doMd) {
+      if (!folder) folder = root.folder(folderName);
+      const mdContent = convToMarkdown(conv);
+      const mdFn = makeChatFilename(idx, conv, '.md');
+      folder.file(mdFn, mdContent);
+      totalMd++;
+    }
+
+    // JSON
+    if (doJson) {
+      if (!folder) folder = root.folder(folderName);
+      const jsonContent = JSON.stringify(convToJSON(conv), null, 2);
+      const jsonFn = makeChatFilename(idx, conv, '.json');
+      folder.file(jsonFn, jsonContent);
+      totalJson++;
+    }
+
+    // Update progress
+    const pct = Math.round(((i + 1) / total) * 90);
+    progressFill.style.width = pct + '%';
+    progressText.textContent = T('progressProcessing').replace('{n}', i + 1).replace('{t}', total);
+
+    // Yield to UI every 50 items
+    if (i % 50 === 49) await new Promise(r => setTimeout(r, 0));
+  }
+
+  // Generate ZIP
+  progressText.textContent = T('progressZipping');
+  progressFill.style.width = '92%';
+
+  const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 5 } }, meta => {
+    const pct = 92 + Math.round(meta.percent * 0.08);
+    progressFill.style.width = pct + '%';
+  });
+
+  // Download
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'claude_extracted.zip';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  progressFill.style.width = '100%';
+  progressText.textContent = T('progressDone')
+    .replace('{f}', totalFileCount)
+    .replace('{m}', totalMd)
+    .replace('{j}', totalJson);
+
+  btn.disabled = false;
+}
+</script>
+</body>
+</html>
