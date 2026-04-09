@@ -9,21 +9,21 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg: #1a1a2e;
-  --bg2: #16213e;
-  --bg3: #0f3460;
-  --surface: #1e2746;
-  --surface2: #253256;
-  --border: #2a3a5c;
-  --text: #e0e0e0;
-  --text2: #a0aec0;
-  --accent: #64b5f6;
-  --accent2: #42a5f5;
-  --green: #66bb6a;
-  --red: #ef5350;
-  --orange: #ffa726;
+  --bg: #0d1117;
+  --bg2: #161b22;
+  --bg3: #1c2a35;
+  --surface: #161b22;
+  --surface2: #1c2a35;
+  --border: #30363d;
+  --text: #e6edf3;
+  --text2: #8b949e;
+  --accent: #58d68d;
+  --accent2: #2ecc71;
+  --green: #58d68d;
+  --red: #f85149;
+  --orange: #d29922;
   --radius: 8px;
-  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", "Noto Sans SC", sans-serif;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", "Noto Sans SC", "Noto Sans JP", sans-serif;
   --mono: "SF Mono", "Fira Code", "Fira Mono", Menlo, monospace;
 }
 
@@ -264,6 +264,7 @@ th input[type="checkbox"] { accent-color: var(--accent); cursor: pointer; }
     <div class="lang-toggle">
       <button id="lang-zh" class="active" onclick="setLang('zh')">ZH</button>
       <button id="lang-en" onclick="setLang('en')">EN</button>
+      <button id="lang-ja" onclick="setLang('ja')">JA</button>
     </div>
   </div>
 
@@ -368,7 +369,7 @@ th input[type="checkbox"] { accent-color: var(--accent); cursor: pointer; }
   </div>
 
   <div class="footer" id="footer-text">
-    Claude Conversation Extractor &mdash; Client-side only, no data uploaded.
+    Claude 對話提取工具 — 純瀏覽器端處理，不上傳任何資料。<br>Made by <a href="https://github.com/lars4261working" target="_blank">koutouseibutsu</a>
   </div>
 </div>
 
@@ -419,7 +420,7 @@ const I18N = {
     readableOk: '\u2705 結果',
     readableAttach: '\u{1f4ce} 附件',
     readableFile: '\u{1f4c1} 檔案',
-    footer: 'Claude 對話提取工具 — 純瀏覽器端處理，不上傳任何資料。',
+    footer: 'Claude 對話提取工具 — 純瀏覽器端處理，不上傳任何資料。<br>Made by <a href="https://github.com/lars4261working" target="_blank">koutouseibutsu</a>',
   },
   en: {
     pageTitle: 'Claude Conversation Extractor',
@@ -463,7 +464,51 @@ const I18N = {
     readableOk: '\u2705 Result',
     readableAttach: '\u{1f4ce} Attachment',
     readableFile: '\u{1f4c1} File',
-    footer: 'Claude Conversation Extractor — Client-side only, no data uploaded.',
+    footer: 'Claude Conversation Extractor — Client-side only, no data uploaded.<br>Made by <a href="https://github.com/lars4261working" target="_blank">koutouseibutsu</a>',
+  },
+  ja: {
+    pageTitle: 'Claude 会話エクスポーター',
+    pageSubtitle: 'conversations.json からファイルと会話を抽出',
+    privacy: 'すべてのデータはブラウザ内でローカル処理されます。サーバーへのアップロードはありません。',
+    uploadText: 'conversations.json をドラッグ＆ドロップまたはクリックしてアップロード',
+    convPanelTitle: '\u{1f4ac} 会話一覧',
+    searchPlaceholder: '会話タイトルを検索...',
+    selectAll: 'すべて選択',
+    deselectAll: '選択解除',
+    selText: '{n} 件の会話を選択中',
+    thDate: '日付',
+    thTitle: 'タイトル',
+    thMsgs: 'メッセージ',
+    optDateLabel: 'フォルダ名に日付を含める',
+    optFilesLabel: 'ファイルを抽出（添付・成果物・ツール生成）',
+    optMdLabel: '会話を Markdown で抽出',
+    optJsonLabel: '会話を JSON で抽出',
+    optsPanelTitle: '\u2699\ufe0f オプション',
+    extPanelTitle: '\u{1f4c4} ファイル種別フィルタ',
+    extAll: 'すべて',
+    extNone: 'なし',
+    btnExtract: '抽出して ZIP ダウンロード',
+    statsConvs: '会話',
+    statsMsgs: 'メッセージ',
+    statsFiles: 'ファイル',
+    statsTypes: '種別',
+    progressPreparing: '準備中...',
+    progressProcessing: '処理中 {n}/{t}...',
+    progressZipping: 'ZIP 生成中...',
+    progressDone: '完了！ファイル {f} 件、Markdown {m} 件、JSON {j} 件を抽出しました',
+    noTitle: '無題',
+    readableUser: '\u{1f9d1} ユーザー',
+    readableClaude: '\u{1f916} Claude',
+    readableCreated: '作成日時',
+    readableUpdated: '更新日時',
+    readableThinking: '\u{1f4ad} 思考プロセス',
+    readableToolCall: '\u{1f527} ツール呼び出し',
+    readableResult: '\u{1f4cb}',
+    readableError: '\u274c エラー',
+    readableOk: '\u2705 結果',
+    readableAttach: '\u{1f4ce} 添付ファイル',
+    readableFile: '\u{1f4c1} ファイル',
+    footer: 'Claude 会話エクスポーター — ブラウザ内処理のみ、データのアップロードなし。<br>Made by <a href="https://github.com/lars4261working" target="_blank">koutouseibutsu</a>',
   }
 };
 
@@ -474,7 +519,8 @@ function setLang(l) {
   lang = l;
   document.getElementById('lang-zh').classList.toggle('active', l === 'zh');
   document.getElementById('lang-en').classList.toggle('active', l === 'en');
-  document.documentElement.lang = l === 'zh' ? 'zh-Hant' : 'en';
+  document.getElementById('lang-ja').classList.toggle('active', l === 'ja');
+  document.documentElement.lang = l === 'zh' ? 'zh-Hant' : l === 'ja' ? 'ja' : 'en';
   updateUI();
 }
 
