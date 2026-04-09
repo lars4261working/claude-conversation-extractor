@@ -30,6 +30,29 @@ Python 3.7+，零依賴。
 - 檔名可帶日期前綴
 - 中／英／日文
 
+## 輸出範例
+
+```
+extracted/
+├── 001_週末晚餐食譜推薦/
+│   ├── 001_週末晚餐食譜推薦_chat.md
+│   ├── 001_週末晚餐食譜推薦_chat.json
+│   └── 紅燒牛肉麵食譜.md
+│
+├── 002_React登入頁面開發/
+│   ├── 002_React登入頁面開發_chat.md
+│   ├── 002_React登入頁面開發_chat.json
+│   ├── LoginPage.jsx
+│   └── auth.py
+│
+├── 003_日本旅遊行程規劃/
+│   ├── 003_日本旅遊行程規劃_chat.md
+│   └── 003_日本旅遊行程規劃_chat.json
+└── ...
+```
+
 ## 自己架
 
 Fork → Settings → Pages → Source 選 `main` → 完事。
+
+注意 `conversations.json` 是你的對話紀錄，記得加進 `.gitignore` 別推上去。
