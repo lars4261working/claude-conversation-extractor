@@ -1,23 +1,22 @@
 # Claude Conversation Extractor
 
-從 Claude 匯出的 `conversations.json` 中提取檔案與對話內容。  
-Extract files and chat history from Claude's exported `conversations.json`.
+Claude 匯出的 `conversations.json` 太大包，裡面對話、檔案、artifact 全混在一起根本沒法看。
 
-## 兩種使用方式
+這工具把它拆開，一個對話一個資料夾，該有的都有。
 
-### 網頁版 (推薦)
+## 用法
 
-直接在瀏覽器中使用，不需要安裝任何東西：
+### 網頁版
 
-**[https://你的帳號.github.io/倉庫名稱/]()**
+開瀏覽器直接用，不用裝東西：
 
-- 上傳你的 `conversations.json`
-- 勾選要提取的對話和選項
-- 下載 ZIP
+**https://lars4261working.github.io/claude-conversation-extractor/**
 
-所有資料在瀏覽器本地處理，不會上傳到任何伺服器。
+丟 `conversations.json` 進去 → 勾你要的 → 下載 ZIP，結束。
 
-> 也可以直接用瀏覽器打開 `index.html`
+全部都在瀏覽器跑，資料不會傳到任何地方。
+
+本地也能用，直接開 `index.html` 就行。
 
 ### CLI 版
 
@@ -25,64 +24,47 @@ Extract files and chat history from Claude's exported `conversations.json`.
 python3 extract_files.py
 ```
 
-Python 3.7+，不需要額外套件。支援互動式選單操作。
+Python 3.7+，零依賴。跑起來是互動選單，照著選就好。
 
-## 功能
+## 能幹嘛
 
-| 功能 | 網頁版 | CLI 版 |
-|------|--------|--------|
-| 提取檔案 (.md .py .html ...) | ✓ | ✓ |
-| 提取對話 — Markdown (人類可讀) | ✓ | ✓ |
-| 提取對話 — JSON (程式可讀) | ✓ | ✓ |
-| 副檔名篩選 | ✓ | ✓ |
-| 日期前綴開關 | ✓ | ✓ |
-| 中/英文切換 | ✓ | ✓ |
-| 搜尋/篩選對話 | ✓ | - |
-| 全選/取消全選 | ✓ | - |
-| 列出對話清單 | ✓ | `list` |
+- 把對話裡 Claude 產的檔案撈出來（.md .py .html 什麼都有）
+- 對話內容轉成好讀的 Markdown 或程式能吃的 JSON
+- 可以按副檔名篩選只要特定類型
+- 檔名可以選要不要帶日期
+- 支援中/英/日文切換
 
-## 輸出結構
-
-每個對話一個資料夾，所有內容放在一起：
+## 拆出來長這樣
 
 ```
 extracted/
 ├── 001_Python接收Discord指令執行bash/
-│   ├── 001_Python接收Discord指令執行bash_chat.md    ← 對話紀錄
-│   ├── 001_Python接收Discord指令執行bash_chat.json   ← 對話紀錄
-│   └── (這個對話沒有產生檔案)
+│   ├── 001_..._chat.md      ← 對話內容（人看的）
+│   ├── 001_..._chat.json    ← 對話內容（程式吃的）
+│   └── script.py            ← Claude 當時產的檔案
 │
 ├── 016_伊朗局勢對黃金美元美股石油的影響/
-│   ├── 016_伊朗局勢..._chat.md
-│   ├── 016_伊朗局勢..._chat.json
-│   └── 史詩之怒行動第13天_市場簡報.md  ← Claude 產生的檔案
+│   ├── 016_..._chat.md
+│   ├── 016_..._chat.json
+│   └── 市場簡報.md
 └── ...
 ```
 
-開啟日期前綴時：`001_2026-03-15_Python接收Discord指令執行bash/`
+帶日期的話：`001_2026-03-15_Python接收Discord指令執行bash/`
 
-## 部署到 GitHub Pages
+## 自己架
 
-1. 建立 GitHub repository
-2. 把這些檔案推上去
-3. 到 Settings → Pages → Source 選 `main` branch
-4. 等幾分鐘，網址就會生效：`https://你的帳號.github.io/倉庫名稱/`
+1. Fork 或 clone 這個 repo
+2. Settings → Pages → Source 選 `main`
+3. 等一下就能用了
 
-## 檔案說明
+## 檔案
 
-| 檔案 | 用途 |
-|------|------|
-| `index.html` | 網頁版（單檔，可獨立使用） |
+| 檔案 | 幹嘛的 |
+|------|--------|
+| `index.html` | 網頁版，單檔搞定 |
 | `extract_files.py` | CLI 版 |
-| `conversations.json` | Claude 匯出的對話資料（你的資料，勿上傳） |
 
-> **注意**：`conversations.json` 包含你的私人對話，推上 GitHub 前請確認 `.gitignore` 有排除它。
+## 注意
 
-## .gitignore 建議
-
-```
-conversations.json
-projects.json
-users.json
-extracted_files/
-```
+`conversations.json` 是你的私人對話，別推上 GitHub。`.gitignore` 已經幫你擋了。
