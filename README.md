@@ -4,6 +4,12 @@ Claude 匯出的 `conversations.json` 太大包，對話、檔案、artifact 全
 
 這工具把它拆開，一個對話一個資料夾。
 
+## 取得 conversations.json
+
+claude.ai → 左下角頭像 → Settings → Privacy → Export Data → 收信 → 下載解壓
+
+裡面的 `conversations.json` 就是這工具要吃的檔案。
+
 ## 用法
 
 ### 網頁版
